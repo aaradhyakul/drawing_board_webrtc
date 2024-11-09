@@ -1,3 +1,7 @@
+import { getSvgPathFromStroke } from '$lib/utils/getSvgPathFromStroke';
+import { ShapeInfo, Intersection } from 'kld-intersections';
+import { getStrokeOutlinePoints, getStroke } from 'perfect-freehand';
+
 type Bounds = {
 	x: number;
 	y: number;
@@ -56,12 +60,12 @@ class Stroke {
 
 class StrokeSegment {
 	points: Point[];
-	parentStroke: Symbol;
+	parentStrokeId: Symbol;
 	bounds: Bounds;
 
-	constructor(points: Point[], parentStroke: Symbol) {
+	constructor(points: Point[], parentStrokeId: Symbol) {
 		this.points = points;
-		this.parentStroke = parentStroke;
+		this.parentStrokeId = parentStrokeId;
 		this.bounds = this.calculateBounds();
 	}
 
@@ -82,19 +86,78 @@ class StrokeSegment {
 
 class QuadTree {
 	bounds: Bounds;
-	maxObjects: number;
+	maxStrokeSegments: number;
+	numStrokeSegments: number;
 	maxLevels: number;
 	level: number;
-	objects: StrokeSegment[];
+	strokes: Map<Symbol, StrokeSegment[]>;
 	nodes: QuadTree[];
 
-	constructor(bounds: Bounds, maxObjects: number = 10, maxLevels: number = 4, level: number = 0) {
+	constructor(
+		bounds: Bounds,
+		maxStrokeSegments: number = 10,
+		maxLevels: number = 4,
+		level: number = 0
+	) {
 		this.bounds = bounds;
-		this.maxObjects = maxObjects;
+		this.maxStrokeSegments = maxStrokeSegments;
 		this.maxLevels = maxLevels;
-		this.objects = [];
+		this.strokes = new Map();
+		this.numStrokeSegments = 0;
 		this.level = level;
 		this.nodes = [];
+	}
+
+	//returns the different candidate strokeSegments
+	retrieve(bounds: Bounds) {
+		let candidateStrokeSegments: StrokeSegment[] = [];
+		if (this.nodes.length) {
+			const boundsIndex = this.getIndex(bounds);
+			if (boundsIndex !== -1) {
+				candidateStrokeSegments = this.nodes[boundsIndex].retrieve(bounds);
+			}
+		} else {
+			for (const strokeSegments of this.strokes.values()) {
+				if (strokeSegments.length) {
+					candidateStrokeSegments.concat(strokeSegments);
+				}
+			}
+		}
+		return candidateStrokeSegments;
+	}
+
+	eraseStrokes(eraserX: number, eraserY: number, eraserRadius: number) {
+		const eraserBounds = {
+			x: eraserX - eraserRadius,
+			y: eraserY - eraserRadius,
+			width: eraserRadius * 2,
+			height: eraserRadius * 2
+		};
+		const candidateStrokeSegments = this.retrieve(eraserBounds);
+		const strokesToErase = new Set<Symbol>();
+		for (const strokeSegment of candidateStrokeSegments) {
+			if (strokesToErase.has(strokeSegment.parentStrokeId)) {
+				continue;
+			}
+			const eraserCircle = ShapeInfo.circle({ x: eraserX, y: eraserY }, eraserRadius);
+			const candidateStrokePath = ShapeInfo.path(
+				getSvgPathFromStroke(getStroke(strokeSegment.points))
+			);
+			const result = Intersection.intersect(eraserCircle, candidateStrokePath);
+			if (result.points.length) {
+				strokesToErase.add(strokeSegment.parentStrokeId);
+			}
+		}
+		for (const strokeId of strokesToErase) {
+			this.delete(strokeId);
+		}
+	}
+
+	delete(strokeId: Symbol) {
+		for (const node of this.nodes) {
+			node.delete(strokeId);
+		}
+		this.strokes.delete(strokeId);
 	}
 
 	split() {
@@ -105,25 +168,25 @@ class QuadTree {
 		const y = this.bounds.y;
 		this.nodes[0] = new QuadTree(
 			{ x: x, y: y + subHeight, width: subWidth, height: subHeight },
-			this.maxObjects,
+			this.maxStrokeSegments,
 			this.maxLevels,
 			nextLevel
 		);
 		this.nodes[1] = new QuadTree(
 			{ x: x + subWidth, y: y + subHeight, width: subWidth, height: subHeight },
-			this.maxObjects,
+			this.maxStrokeSegments,
 			this.maxLevels,
 			nextLevel
 		);
 		this.nodes[2] = new QuadTree(
 			{ x: x, y: y, width: subWidth, height: subHeight },
-			this.maxObjects,
+			this.maxStrokeSegments,
 			this.maxLevels,
 			nextLevel
 		);
 		this.nodes[3] = new QuadTree(
 			{ x: x + subWidth, y: y, width: subWidth, height: subHeight },
-			this.maxObjects,
+			this.maxStrokeSegments,
 			this.maxLevels,
 			nextLevel
 		);
@@ -143,14 +206,17 @@ class QuadTree {
 				return;
 			}
 		}
-		this.objects.push(strokeSegment);
-		if (this.objects.length > this.maxObjects && this.level < this.maxLevels) {
+		if (!this.strokes.has(strokeSegment.parentStrokeId)) {
+			this.strokes.set(strokeSegment.parentStrokeId, []);
+		}
+		this.strokes.get(strokeSegment.parentStrokeId)?.push(strokeSegment);
+		this.numStrokeSegments++;
+		if (this.numStrokeSegments > this.maxStrokeSegments && this.level < this.maxLevels) {
 			if (!this.nodes.length) {
 				this.split();
 			}
 			const remainingObjects: StrokeSegment[] = [];
-			for (let i = 0; i < this.objects.length; i++) {
-				const segment = this.objects[i];
+			for (const segment of this.strokes.get(strokeSegment.parentStrokeId)!) {
 				const index = this.getIndex(segment.bounds);
 				if (index !== -1) {
 					this.nodes[index].insertStrokeSegment(segment);
@@ -158,7 +224,7 @@ class QuadTree {
 					remainingObjects.push(segment);
 				}
 			}
-			this.objects = remainingObjects;
+			this.strokes.set(strokeSegment.parentStrokeId, remainingObjects);
 		}
 	}
 	getIndex(bounds: Bounds) {

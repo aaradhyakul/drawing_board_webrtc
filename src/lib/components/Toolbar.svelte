@@ -10,5 +10,14 @@
 	<button on:click={() => toolManager.setSelectedTool('textbox')}>Textbox</button>
 	<button on:click={() => toolManager.setSelectedTool('ellipse')}>Ellipse</button>
 	<button on:click={() => drawingState.setSelectedTool('rectangle')}>Rectangle</button> -->
-</div>
 <h1>{toolManager.selectedTool}</h1>
+</div>
+
+<style>
+	div {
+		position: absolute;
+		top: 0;
+		left: 0;
+		z-index: 100;
+	}
+</style>

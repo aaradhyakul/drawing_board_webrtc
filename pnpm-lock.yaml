@@ -5,9 +5,15 @@ settings:
   excludeLinksFromLockfile: false
 
 dependencies:
+  kld-intersections:
+    specifier: ^0.7.0
+    version: 0.7.0
   paper:
     specifier: ^0.12.18
     version: 0.12.18
+  perfect-freehand:
+    specifier: ^1.2.2
+    version: 1.2.2
 
 devDependencies:
   '@sveltejs/adapter-auto':
@@ -1342,6 +1348,30 @@ packages:
       json-buffer: 3.0.1
     dev: true
 
+  /kld-affine@2.1.1:
+    resolution: {integrity: sha512-NIS9sph8ZKdnQxZa5TcggaFs/Qr9zX3brFlGwE0+0Z4EzFIvAFuqLSwNeU4GkEpaX8ndh3ggGmWV7BPPcS3vjQ==}
+    engines: {node: '>= 10.15.3'}
+    dev: false
+
+  /kld-intersections@0.7.0:
+    resolution: {integrity: sha512-/KuBU7Y5bRPGfc0yQ3QIoXPKqOQ6cBWDRl1XVMMa3pm4V6Ydbgy9e2fZoRxlSIU0gZSBt1c6gWLOzSGKbU8I3A==}
+    engines: {node: '>= 10.15.3'}
+    dependencies:
+      kld-affine: 2.1.1
+      kld-path-parser: 0.2.1
+      kld-polynomial: 0.3.0
+    dev: false
+
+  /kld-path-parser@0.2.1:
+    resolution: {integrity: sha512-C1EqY6vzqv5tdKeMF31L+JXq97n5zo67LiSEhZf4sPq8YeM+8ytp/qMGSKN8VdSPvFa6h1SR35aF4+T2JtxZww==}
+    engines: {node: '>= 10.15.3'}
+    dev: false
+
+  /kld-polynomial@0.3.0:
+    resolution: {integrity: sha512-PEfxjQ6tsxL9DHBIhM2UZsSes0GI+OIMjbE0kj60jr80Biq/xXl1eGfnyzmfoackAMdKZtw2060L09HdjkPP5w==}
+    engines: {node: '>= 10.15.3'}
+    dev: false
+
   /kleur@4.1.5:
     resolution: {integrity: sha512-o+NO+8WrRiQEE4/7nwRJhN1HWpVmJm511pBHUxPLtp0BUISzlBplORYSmTclCnJvQq2tKu/sgl3xVpkc7ZWuQQ==}
     engines: {node: '>=6'}
@@ -1482,6 +1512,10 @@ packages:
     resolution: {integrity: sha512-ojmeN0qd+y0jszEtoY48r0Peq5dwMEkIlCOu6Q5f41lfkswXuKtYrhgoTpLnyIcHm24Uhqx+5Tqm2InSwLhE6Q==}
     engines: {node: '>=8'}
     dev: true
+
+  /perfect-freehand@1.2.2:
+    resolution: {integrity: sha512-eh31l019WICQ03pkF3FSzHxB8n07ItqIQ++G5UV8JX0zVOXzgTGCqnRR0jJ2h9U8/2uW4W4mtGJELt9kEV0CFQ==}
+    dev: false
 
   /picocolors@1.1.1:
     resolution: {integrity: sha512-xceH2snhtb5M9liqDsmEw56le376mTZkEX/jEb/RxNFyegNul7eNslCXP9FDj/Lcu0X8KEyMceP2ntpaHrDEVA==}

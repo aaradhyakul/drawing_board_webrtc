@@ -1,39 +1,37 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { toolManager } from '$lib/tools/toolManager.svelte';
+	import { Window } from '$lib/state/window.svelte';
 
-	let canvas: HTMLCanvasElement | null = null;
-	let width = $state(400);
-	let height = $state(100);
+	let svg: SVGSVGElement | null = null;
+	let viewBox = $derived.by(() => {
+		return `0 0 ${Window.width} ${Window.height}`;
+	});
 	let backgroundColor = $state('#fff');
 	let selectedTool = $derived(toolManager.selectedTool);
 
 	onMount(() => {
-		if (!canvas) return;
-		// Handle window resize
 		const handleResize = () => {
+			if (!svg) return;
+			Window.width = window.innerWidth;
+			Window.height = window.innerHeight;
+			svg.setAttribute('viewBox', viewBox);
 		};
-
 		window.addEventListener('resize', handleResize);
+		handleResize();
 
 		return () => {
 			window.removeEventListener('resize', handleResize);
+			window.removeEventListener('load', handleResize);
 		};
 	});
 </script>
 
-<canvas
-    bind:this={canvas}
-    width={width}
-    height={height}
-    style="border: 1px solid #ccc;"
->
-    <!-- Paper.js will inject SVG content here -->
-</canvas>
+<svg bind:this={svg} style="border: 1px solid #ccc;"></svg>
 <style>
-	canvas {
-		width: 100%;
-		height: 50%;
-		background-color: var(--bg-color);
+	svg {
+		width: 100vw;
+		height: 100vh;
+		background-color: hsl(50, 100%, 92%);
 	}
 </style>
