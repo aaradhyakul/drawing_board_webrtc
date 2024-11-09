@@ -5,22 +5,24 @@ import { ShapeInfo, Intersection } from 'kld-intersections';
 import { getStrokeOutlinePoints, getStroke } from 'perfect-freehand';
 import { SvelteMap } from 'svelte/reactivity';
 
-class QuadTreeRoot {
-	quadTree: QuadTree;
+// class QuadTreeRoot {
+// 	quadTree: QuadTree;
 
-	constructor() {
-		this.quadTree = new QuadTree(
-			{
-				x: -Infinity,
-				y: -Infinity,
-				width: Infinity,
-				height: Infinity
-			},
-			0
-		);
-	}
-}
+// 	constructor() {
+// 		this.quadTree = new QuadTree(
+// 			{
+// 				x: -Infinity,
+// 				y: -Infinity,
+// 				width: Infinity,
+// 				height: Infinity
+// 			},
+// 			0
+// 		);
+// 	}
+// }
 class QuadTree {
+	static MAX: number = 1e3;
+	static MIN: number = -1e3;
 	bounds: Bounds;
 	static maxStrokeSegments: number = 10;
 	static maxLevels: number = 4;
@@ -44,9 +46,20 @@ class QuadTree {
 			}
 		} else {
 			for (const strokeSegments of this.strokeSegmentsMap.values()) {
-				candidateStrokeSegments.concat(strokeSegments);
+				candidateStrokeSegments = candidateStrokeSegments.concat(strokeSegments);
+				// console.log('strokes: ', strokeSegments);
 			}
 		}
+		candidateStrokeSegments = candidateStrokeSegments.filter((segment) => {
+			// Check if the segment's bounds overlap with the given bounds
+			return !(
+				segment.bounds.x + segment.bounds.width < bounds.x || // segment is left of bounds
+				segment.bounds.x > bounds.x + bounds.width || // segment is right of bounds
+				segment.bounds.y + segment.bounds.height < bounds.y || // segment is above bounds
+				segment.bounds.y > bounds.y + bounds.height
+			); // segment is below bounds
+		});
+
 		return candidateStrokeSegments;
 	}
 
@@ -195,7 +208,7 @@ export class Stroke {
 		let currentSegmentWidth = 0;
 		let currentSegmentHeight = 0;
 
-		for (let i = 0, removeCnt = 1; i < this.points.length; i++, removeCnt++) {
+		for (let i = 0, removeCnt = 0; i < this.points.length; i++, removeCnt++) {
 			const point = this.points[i];
 			minX = Math.min(minX, point.x);
 			minY = Math.min(minY, point.y);
@@ -288,4 +301,15 @@ export class KeyedSet<T> {
 // export strokes: KeyedSet<Stroke>('id') = $state(new KeyedSet('id'));
 // export const strokes: KeyedSet<Stroke> = $state(new KeyedSet('id'));
 export const strokes: KeyedSet<Stroke> = new KeyedSet('id');
-export const qt = $state.raw(new QuadTreeRoot());
+// export const qt = $state.raw(new QuadTreeRoot());
+export const qt = $state.raw(
+	new QuadTree(
+		{
+			x: QuadTree.MIN,
+			y: QuadTree.MIN,
+			width: 2 * QuadTree.MAX,
+			height: 2 * QuadTree.MAX
+		},
+		0
+	)
+);

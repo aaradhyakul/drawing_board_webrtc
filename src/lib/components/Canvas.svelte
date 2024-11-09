@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { toolManager } from '$lib/tools/toolManager.svelte';
+	import { toolManager, ToolName } from '$lib/tools/toolManager.svelte';
 	import { Window } from '$lib/state/window.svelte';
-	import {strokes, qt, Stroke} from '$lib/state/strokes.svelte'
+	import {strokes, qt, Stroke, StrokeSegment} from '$lib/state/strokes.svelte'
+	import Toolbar from './Toolbar.svelte';
 
 	let svg: SVGSVGElement | null = null;
 	let viewBox = $derived.by(() => {
@@ -11,7 +12,9 @@
 	let backgroundColor = $state('#fff');
 	let selectedTool = $derived(toolManager.selectedTool);
 	let currentStroke = $state<Stroke>()
+	let eraserBounds = $state<Bounds>()
 	let isDrawing = $state(false);
+	let candidateStrokeSegments = $state<StrokeSegment[]>()
 
 	onMount(() => {
 		const handleResize = () => {
@@ -30,38 +33,57 @@
 	});
 
 	const onPointerDown = (event: MouseEvent) =>{
-		console.log("onPointerDown")
-		const {x, y,button} = event;
+		// console.log("onPointerDown")
+		const {clientX: x, clientY: y,button} = event;
 		if(button !== 0){
 			return;
 		}
 		isDrawing = true;
-		currentStroke = new Stroke([{x, y}]);
+		if(toolManager.selectedTool === ToolName.Pen){
+			currentStroke = new Stroke([{x, y}]);
+		}else{
+			candidateStrokeSegments = []
+			eraserBounds = {x: x - 15, y: y - 15, width: 30, height: 30}
+		}
 	}
+	$effect(() => {
+		$inspect(candidateStrokeSegments)
+	})
 
 	const onPointerMove = (event: MouseEvent) =>{
-		console.log("onPointerMove")
+		// console.log("onPointerMove")
 		if(!isDrawing){
 			return;
 		}
-		const {x, y} = event;
-		if(currentStroke){
-			currentStroke?.points.push({x, y});
-			currentStroke.generatePath();
+		const {clientX: x, clientY: y,button} = event;
+		if(toolManager.selectedTool === ToolName.Pen){
+			if(currentStroke){
+				currentStroke?.points.push({x, y});
+				currentStroke.generatePath();
+			}
+		}else{
+			eraserBounds = {x: x - 15, y: y - 15, width: 30, height: 30}
+			candidateStrokeSegments = candidateStrokeSegments?.concat(qt.getCandidateStrokeSegments(eraserBounds))
 		}
 		// console.log(currentStroke?.path)
 	}
 
 	const onPointerUp = (event: MouseEvent) =>{
-		console.log("onPointerUp")
+		// console.log("onPointerUp")
 		if(!isDrawing){
 			return;
 		}
 		isDrawing = false;
-		if(currentStroke){
-			currentStroke.segmentizeStroke();
-			strokes.set(currentStroke);
-			console.log(currentStroke)
+		if(toolManager.selectedTool === ToolName.Pen){
+			if(currentStroke){
+				currentStroke.segmentizeStroke();
+				qt.insertStroke(currentStroke);
+				// console.dir(qt, {depth: null})
+				strokes.set(currentStroke);
+				// console.log(currentStroke)
+			}
+		}else{
+			// $inspect(candidateStrokeSegments)
 		}
 		// console.log(strokes);
 	}
