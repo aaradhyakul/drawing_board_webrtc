@@ -173,8 +173,8 @@ export class Stroke {
 	static idCounter = 0;
 	static segmentSize = 50;
 	id: Symbol;
-	points: Point[] = $state([]);
-	path?: string = $derived.by(() => this.generatePath());
+	points: Point[];
+	path?: string = $state('');
 	segments: StrokeSegment[] = [];
 	constructor(points: Point[]) {
 		this.points = points;
@@ -183,7 +183,7 @@ export class Stroke {
 	}
 
 	generatePath() {
-		return getSvgPathFromStroke(getStroke(this.points));
+		this.path = getSvgPathFromStroke(getStroke(this.points));
 	}
 
 	segmentizeStroke() {
@@ -195,7 +195,7 @@ export class Stroke {
 		let currentSegmentWidth = 0;
 		let currentSegmentHeight = 0;
 
-		for (let i = 0; i < this.points.length; i++) {
+		for (let i = 0, removeCnt = 1; i < this.points.length; i++, removeCnt++) {
 			const point = this.points[i];
 			minX = Math.min(minX, point.x);
 			minY = Math.min(minY, point.y);
@@ -205,16 +205,20 @@ export class Stroke {
 			currentSegmentHeight = maxY - minY;
 
 			if (currentSegmentWidth > Stroke.segmentSize || currentSegmentHeight > Stroke.segmentSize) {
-				segments.push(new StrokeSegment(this.points.splice(0, i), this.id));
-				minX = point.x;
-				minY = point.y;
-				maxX = point.x;
-				maxY = point.y;
+				segments.push(new StrokeSegment(this.points.splice(0, removeCnt), this.id));
+				minX = Infinity;
+				minY = Infinity;
+				maxX = -Infinity;
+				maxY = -Infinity;
 				currentSegmentWidth = 0;
 				currentSegmentHeight = 0;
+				removeCnt = 1;
 			}
 		}
-		return segments;
+		if (segments.length === 0) {
+			segments.push(new StrokeSegment(this.points, this.id));
+		}
+		this.segments = segments;
 	}
 }
 

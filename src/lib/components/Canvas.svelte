@@ -32,9 +32,9 @@
 	const onPointerDown = (event: MouseEvent) =>{
 		console.log("onPointerDown")
 		const {x, y,button} = event;
-		// if(pointerType === 'Mouse' && button !== 0){
-		// 	return;
-		// }
+		if(button !== 0){
+			return;
+		}
 		isDrawing = true;
 		currentStroke = new Stroke([{x, y}]);
 	}
@@ -47,6 +47,7 @@
 		const {x, y} = event;
 		if(currentStroke){
 			currentStroke?.points.push({x, y});
+			currentStroke.generatePath();
 		}
 		// console.log(currentStroke?.path)
 	}
@@ -58,11 +59,11 @@
 		}
 		isDrawing = false;
 		if(currentStroke){
-			strokes.set(currentStroke);
 			currentStroke.segmentizeStroke();
+			strokes.set(currentStroke);
+			console.log(currentStroke)
 		}
-		console.log(strokes);
-		// console.log(currentStroke)
+		// console.log(strokes);
 	}
 </script>
 
@@ -70,7 +71,8 @@
 onmousedown={onPointerDown}
 onmousemove={onPointerMove}
 onmouseup={onPointerUp}
->
+aria-label="drawing canvas"
+role="application">
 {#each strokes.values() as stroke}
 	<path d={stroke.path} fill="black" stroke="black" stroke-width="2"/>
 {/each}
