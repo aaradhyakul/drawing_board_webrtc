@@ -20,12 +20,12 @@ import { SvelteMap } from 'svelte/reactivity';
 // 		);
 // 	}
 // }
-class QuadTree {
+export class QuadTree {
 	static MAX: number = 1e3;
 	static MIN: number = -1e3;
 	bounds: Bounds;
-	static maxStrokeSegments: number = 10;
-	static maxLevels: number = 4;
+	static maxStrokeSegments: number = 2;
+	static maxLevels: number = 6;
 	numStrokeSegments: number = 0;
 	level: number;
 	strokeSegmentsMap: Map<Symbol, StrokeSegment[]> = new Map();
@@ -36,30 +36,39 @@ class QuadTree {
 		this.level = level;
 	}
 
+	debug() {
+		console.dir(this, { depth: null });
+	}
+
 	//returns the different candidate strokeSegments
 	getCandidateStrokeSegments(bounds: Bounds) {
 		let candidateStrokeSegments: StrokeSegment[] = [];
+		this.strokeSegmentsMap.forEach((segments) => {
+			candidateStrokeSegments = candidateStrokeSegments.concat(segments);
+		});
 		if (this.children.length) {
 			const boundsIndex = this.getIndex(bounds);
 			if (boundsIndex !== -1) {
-				candidateStrokeSegments = this.children[boundsIndex].getCandidateStrokeSegments(bounds);
-			}
-		} else {
-			for (const strokeSegments of this.strokeSegmentsMap.values()) {
-				candidateStrokeSegments = candidateStrokeSegments.concat(strokeSegments);
-				// console.log('strokes: ', strokeSegments);
+				candidateStrokeSegments = candidateStrokeSegments.concat(
+					this.children[boundsIndex].getCandidateStrokeSegments(bounds)
+				);
+			} else {
+				this.children.forEach((child) => {
+					candidateStrokeSegments = candidateStrokeSegments.concat(
+						child.getCandidateStrokeSegments(bounds)
+					);
+				});
 			}
 		}
-		candidateStrokeSegments = candidateStrokeSegments.filter((segment) => {
-			// Check if the segment's bounds overlap with the given bounds
-			return !(
-				segment.bounds.x + segment.bounds.width < bounds.x || // segment is left of bounds
-				segment.bounds.x > bounds.x + bounds.width || // segment is right of bounds
-				segment.bounds.y + segment.bounds.height < bounds.y || // segment is above bounds
-				segment.bounds.y > bounds.y + bounds.height
-			); // segment is below bounds
-		});
-
+		// candidateStrokeSegments = candidateStrokeSegments.filter((segment) => {
+		// 	// Check if the segment's bounds overlap with the given bounds
+		// 	return !(
+		// 		segment.bounds.x + segment.bounds.width < bounds.x || // segment is left of bounds
+		// 		segment.bounds.x > bounds.x + bounds.width || // segment is right of bounds
+		// 		segment.bounds.y + segment.bounds.height < bounds.y || // segment is above bounds
+		// 		segment.bounds.y > bounds.y + bounds.height
+		// 	); // segment is below bounds
+		// });
 		return candidateStrokeSegments;
 	}
 
@@ -70,8 +79,10 @@ class QuadTree {
 			width: eraserRadius * 2,
 			height: eraserRadius * 2
 		};
+
 		const candidateStrokeSegments = this.getCandidateStrokeSegments(eraserBounds);
 		const strokesToErase = new Set<Symbol>();
+
 		for (const strokeSegment of candidateStrokeSegments) {
 			if (strokesToErase.has(strokeSegment.parentStrokeId)) {
 				continue;
@@ -85,6 +96,7 @@ class QuadTree {
 				strokesToErase.add(strokeSegment.parentStrokeId);
 			}
 		}
+
 		for (const strokeId of strokesToErase) {
 			this.delete(strokeId);
 		}
@@ -94,6 +106,7 @@ class QuadTree {
 		for (const node of this.children) {
 			node.delete(strokeId);
 		}
+		this.numStrokeSegments -= this.strokeSegmentsMap.get(strokeId)?.length || 0;
 		this.strokeSegmentsMap.delete(strokeId);
 	}
 
@@ -125,6 +138,7 @@ class QuadTree {
 	}
 
 	insertStrokeSegment(strokeSegment: StrokeSegment) {
+		// debugger;
 		if (this.children.length) {
 			const index = this.getIndex(strokeSegment.bounds);
 			if (index !== -1) {
@@ -141,41 +155,49 @@ class QuadTree {
 			if (!this.children.length) {
 				this.split();
 			}
-			const remainingObjects: StrokeSegment[] = [];
-			for (const segment of this.strokeSegmentsMap.get(strokeSegment.parentStrokeId)!) {
-				const index = this.getIndex(segment.bounds);
-				if (index !== -1) {
-					this.children[index].insertStrokeSegment(segment);
-				} else {
-					remainingObjects.push(segment);
-				}
-			}
-			this.strokeSegmentsMap.set(strokeSegment.parentStrokeId, remainingObjects);
+			// for (const segment of this.strokeSegmentsMap.get(strokeSegment.parentStrokeId)!) {
+			// const index = this.getIndex(segment.bounds);
+			// if (index !== -1) {
+			// 	this.children[index].insertStrokeSegment(segment);
+			// } else {
+			// 	remainingObjects.push(segment);
+			// }
+			// }
+			this.strokeSegmentsMap.forEach((segments, id) => {
+				this.numStrokeSegments = 0;
+				const remainingObjects: StrokeSegment[] = [];
+				segments.forEach((segment) => {
+					const index = this.getIndex(segment.bounds);
+					if (index !== -1) {
+						this.children[index].insertStrokeSegment(segment);
+					} else {
+						remainingObjects.push(segment);
+					}
+				});
+				this.strokeSegmentsMap.set(id, remainingObjects);
+				this.numStrokeSegments += remainingObjects.length;
+			});
+			// if (this.numStrokeSegments > QuadTree.maxStrokeSegments) {
+			// 	QuadTree.maxStrokeSegments *= 2;
+			// }
 		}
 	}
 
 	getIndex(bounds: Bounds) {
-		const verticalMidpoint = this.bounds.x + this.bounds.width / 2;
-		const horizontalMidpoint = this.bounds.y + this.bounds.height / 2;
-		const inBottomHalf = bounds.y > verticalMidpoint;
-		const inLeftHalf = bounds.x + bounds.width < horizontalMidpoint;
-		const inRightHalf = bounds.x > horizontalMidpoint;
-		const inTopHalf = bounds.y + bounds.height < verticalMidpoint;
-
-		if (inTopHalf) {
-			if (inLeftHalf) {
-				return 2;
-			}
-			if (inRightHalf) {
+		const { x, y, width, height } = this.bounds;
+		const hmid = x + width / 2;
+		const vmid = y + height / 2;
+		if (bounds.x > hmid) {
+			if (bounds.y > vmid) {
+				return 1;
+			} else if (bounds.y + bounds.height < vmid) {
 				return 3;
 			}
-		}
-		if (inBottomHalf) {
-			if (inLeftHalf) {
+		} else if (bounds.x + bounds.width < hmid) {
+			if (bounds.y > vmid) {
 				return 0;
-			}
-			if (inRightHalf) {
-				return 1;
+			} else if (bounds.y + bounds.height < vmid) {
+				return 2;
 			}
 		}
 		return -1;
@@ -196,7 +218,13 @@ export class Stroke {
 	}
 
 	generatePath() {
-		this.path = getSvgPathFromStroke(getStroke(this.points));
+		this.path = getSvgPathFromStroke(
+			getStroke(this.points, {
+				size: 2,
+				thinning: 0.5,
+				smoothing: 0.5
+			})
+		);
 	}
 
 	segmentizeStroke() {
@@ -225,7 +253,8 @@ export class Stroke {
 				maxY = -Infinity;
 				currentSegmentWidth = 0;
 				currentSegmentHeight = 0;
-				removeCnt = 1;
+				removeCnt = 0;
+				i = 0;
 			}
 		}
 		if (segments.length === 0) {
@@ -305,11 +334,23 @@ export const strokes: KeyedSet<Stroke> = new KeyedSet('id');
 export const qt = $state.raw(
 	new QuadTree(
 		{
-			x: QuadTree.MIN,
-			y: QuadTree.MIN,
-			width: 2 * QuadTree.MAX,
-			height: 2 * QuadTree.MAX
+			x: 0,
+			y: 0,
+			width: QuadTree.MAX,
+			height: QuadTree.MAX / 2
 		},
 		0
 	)
 );
+
+// export const qt = $state.raw(
+// 	new QuadTree(
+// 		{
+// 			x: QuadTree.MIN,
+// 			y: QuadTree.MIN,
+// 			width: 3 * QuadTree.MAX,
+// 			height: 3 * QuadTree.MAX
+// 		},
+// 		0
+// 	)
+// );
