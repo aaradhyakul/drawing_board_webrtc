@@ -58,7 +58,7 @@
 			return;
 		}
 		isDrawing = true;
-		eraserBounds = { x: x - 25, y: y - 25, width: 50, height: 50 };
+		eraserBounds = { x: x - 2, y: y - 2, width: 4, height: 4 };
 		if (toolManager.selectedTool === ToolName.Pen) {
 			currentStroke = new Stroke([{ x, y }]);
 		} else {
@@ -81,7 +81,8 @@
 				currentStroke.generatePath();
 			}
 		} else {
-			eraserBounds = { x: x - 25, y: y - 25, width: 50, height: 50 };
+			// eraserBounds = { x: x - 25, y: y - 25, width: 50, height: 50 };
+			eraserBounds = { x: x - 2, y: y - 2, width: 4, height: 4 };
 			// candidateStrokeSegments = candidateStrokeSegments?.concat(qt.getCandidateStrokeSegments(eraserBounds))
 			const strokesToErase = new Set();
 			for (const segment of qt.getCandidateStrokeSegments(eraserBounds)) {
@@ -89,7 +90,7 @@
 					continue;
 				}
 				// candidateStrokeSegments?.add(segment);
-				const eraserCircle = ShapeInfo.circle({ x, y }, 10);
+				const eraserCircle = ShapeInfo.circle({ x, y }, 2);
 				const candidateStrokePath = ShapeInfo.path(
 					getSvgPathFromStroke(
 						getStroke(strokes.get(segment.parentStrokeId)?.points || [], {
@@ -153,11 +154,18 @@
 	</svg>
 	{#each bounds as bound}
 		<div
+			class="bounds"
 			style:--x={bound.x}
 			style:--y={bound.y}
 			style:--w={bound.width}
 			style:--h={bound.height}
 		></div>
+	{/each}
+
+	{#each strokes.values() as stroke}
+		{#each stroke.points as point}
+			<div class="points" style:--x={point.x} style:--y={point.y}></div>
+		{/each}
 	{/each}
 </button>
 
@@ -167,13 +175,25 @@
 		height: 100vh;
 		background-color: hsl(50, 100%, 92%);
 	}
-	div {
+	div.bounds {
 		position: absolute;
 		top: calc(var(--y) * 1px);
 		left: calc(var(--x) * 1px);
 		width: calc(var(--w) * 1px);
 		height: calc(var(--h) * 1px);
 		border: 1px solid black;
+		/* z-index: 100; */
+	}
+
+	div.points {
+		position: absolute;
+		top: calc(var(--y) * 1px);
+		left: calc(var(--x) * 1px);
+		width: 5px;
+		height: 5px;
+		border-radius: 50%;
+		background-color: red;
+		border: 1px solid red;
 		/* z-index: 100; */
 	}
 </style>

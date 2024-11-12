@@ -236,6 +236,7 @@ export class Stroke {
 		let currentSegmentWidth = 0;
 		let currentSegmentHeight = 0;
 
+		let j = 0;
 		for (let i = 0, removeCnt = 0; i < this.points.length; i++, removeCnt++) {
 			const point = this.points[i];
 			minX = Math.min(minX, point.x);
@@ -246,7 +247,7 @@ export class Stroke {
 			currentSegmentHeight = maxY - minY;
 
 			if (currentSegmentWidth > Stroke.segmentSize || currentSegmentHeight > Stroke.segmentSize) {
-				segments.push(new StrokeSegment(this.points.splice(0, removeCnt), this.id));
+				segments.push(new StrokeSegment(this.points.slice(j, j + removeCnt), this.id));
 				minX = Infinity;
 				minY = Infinity;
 				maxX = -Infinity;
@@ -254,9 +255,10 @@ export class Stroke {
 				currentSegmentWidth = 0;
 				currentSegmentHeight = 0;
 				removeCnt = 0;
-				i = 0;
+				j = i;
 			}
 		}
+
 		if (segments.length === 0) {
 			segments.push(new StrokeSegment(this.points, this.id));
 		}
