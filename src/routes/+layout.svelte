@@ -1,4 +1,5 @@
 <script>
+	import '../styles/app.css';
 	import Toolbar from '$lib/components/Toolbar.svelte';
 </script>
 
@@ -6,6 +7,47 @@
 <slot />
 
 <style>
+	:global(:root) {
+		/* Colors */
+		--primary: #4a90e2;
+		--secondary: #50e3c2;
+
+		/* Background colors */
+		--bg-0: #ffffff;
+		--bg-1: #f5f5f5;
+		--bg-2: #eeeeee;
+		--bg-3: #e0e0e0;
+
+		/* Foreground/Text colors */
+		--fg-0: #000000;
+		--fg-1: #333333;
+		--fg-2: #666666;
+		--fg-3: #999999;
+
+		--error: #ff4d4d;
+		--success: #00c853;
+		--warning: #ffd600;
+
+		--space-1: 0.25rem;
+		--space-2: 0.5rem;
+		--space-3: 1rem;
+		--space-4: 1.5rem;
+		--space-5: 2rem;
+
+		--text-xs: 0.75rem;
+		--text-sm: 0.875rem;
+		--text-base: 1rem;
+		--text-lg: 1.125rem;
+		--text-xl: 1.25rem;
+
+		--radius-sm: 0.125rem;
+		--radius-base: 0.25rem;
+		--radius-lg: 0.5rem;
+
+		--transition-fast: 150ms ease;
+		--transition-base: 300ms ease;
+		--transition-slow: 500ms ease;
+	}
 	:global(*) {
 		margin: 0;
 		padding: 0;

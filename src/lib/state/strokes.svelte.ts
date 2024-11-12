@@ -43,14 +43,14 @@ export class QuadTree {
 				});
 			}
 		}
-		candidateStrokeSegments = candidateStrokeSegments.filter((segment) => {
-			return !(
-				segment.bounds.x + segment.bounds.width < bounds.x || // segment is left of bounds
-				segment.bounds.x > bounds.x + bounds.width || // segment is right of bounds
-				segment.bounds.y + segment.bounds.height < bounds.y || // segment is above bounds
-				segment.bounds.y > bounds.y + bounds.height
-			); // segment is below bounds
-		});
+		// candidateStrokeSegments = candidateStrokeSegments.filter((segment) => {
+		// 	return !(
+		// 		segment.bounds.x + segment.bounds.width < bounds.x || // segment is left of bounds
+		// 		segment.bounds.x > bounds.x + bounds.width || // segment is right of bounds
+		// 		segment.bounds.y + segment.bounds.height < bounds.y || // segment is above bounds
+		// 		segment.bounds.y > bounds.y + bounds.height
+		// 	); // segment is below bounds
+		// });
 		return candidateStrokeSegments;
 	}
 
