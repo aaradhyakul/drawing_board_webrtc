@@ -2,11 +2,12 @@ import { getSvgPathFromStroke } from '$lib/utils/getSvgPathFromStroke';
 import { ShapeInfo, Intersection } from 'kld-intersections';
 import { KeyedSet } from '$lib/utils/keyedSet.svelte';
 import { getStroke } from 'perfect-freehand';
+import { Window } from './window.svelte';
 
 export class QuadTree {
 	static MAX: number = 1e3;
 	static MIN: number = -1e3;
-	bounds: Bounds;
+	bounds: Bounds = $state({ x: 0, y: 0, width: QuadTree.MAX, height: QuadTree.MAX / 2 });
 	static maxStrokeSegments: number = 2;
 	static maxLevels: number = 6;
 	numStrokeSegments: number = 0;

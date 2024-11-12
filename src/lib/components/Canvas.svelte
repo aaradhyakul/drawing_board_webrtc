@@ -34,7 +34,7 @@
 			if (!svg) return;
 			Window.width = window.innerWidth;
 			Window.height = window.innerHeight;
-			svg.setAttribute('viewBox', viewBox);
+			// svg.setAttribute('viewBox', viewBox);
 		};
 		window.addEventListener('resize', handleResize);
 		handleResize();
