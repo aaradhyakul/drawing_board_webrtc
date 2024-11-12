@@ -30,7 +30,6 @@
 	},
 	"dependencies": {
 		"kld-intersections": "^0.7.0",
-		"paper": "^0.12.18",
 		"perfect-freehand": "^1.2.2"
 	}
 }
