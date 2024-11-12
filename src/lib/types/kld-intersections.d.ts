@@ -31,6 +31,7 @@ declare module 'kld-intersections' {
 	export class ShapeInfo {
 		static line(p1: Point2D, p2: Point2D): any;
 		static circle(center: Point2D, radius: number): any;
+		static circle(x: number, y: number, radius: number): any;
 		static rectangle(x: number, y: number, width: number, height: number): any;
 		static polygon(points: Point2D[]): any;
 		static path(path: string): any;

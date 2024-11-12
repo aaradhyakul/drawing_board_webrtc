@@ -2,20 +2,16 @@
 	import { onMount } from 'svelte';
 	import { toolManager, ToolName } from '$lib/tools/toolManager.svelte';
 	import { Window } from '$lib/state/window.svelte';
-	import { strokes, qt, Stroke, StrokeSegment, QuadTree } from '$lib/state/strokes.svelte';
-	import { ShapeInfo, Intersection } from 'kld-intersections';
-	import { getSvgPathFromStroke } from '$lib/utils/getSvgPathFromStroke';
-	import { getStroke } from 'perfect-freehand';
+	import { Stroke, StrokeSegment, QuadTree } from '$lib/state/strokes.svelte';
+	import { ds } from '$lib/state/strokes.svelte';
 	import Toolbar from './Toolbar.svelte';
 
 	let svg: SVGSVGElement | null = null;
 	let viewBox = $derived.by(() => {
 		return `0 0 ${Window.width} ${Window.height}`;
 	});
-	let backgroundColor = $state('#fff');
 	let selectedTool = $derived(toolManager.selectedTool);
 	let currentStroke = $state<Stroke>();
-	let eraserBounds = $state<Bounds>();
 	let isDrawing = $state(false);
 	let candidateStrokeSegments = $state<Set<StrokeSegment>>();
 	let bounds = $state<Bounds[]>([]);
@@ -29,9 +25,8 @@
 			}
 		};
 		const temp: Bounds[] = [];
-		dfs(qt, temp);
+		dfs(ds.qt, temp);
 		bounds = temp;
-		// console.dir(qt, { depth: null });
 	};
 
 	onMount(() => {
@@ -51,101 +46,56 @@
 		};
 	});
 
-	const onPointerDown = (event: MouseEvent) => {
-		// console.log("onPointerDown")
+	const onMouseDown = (event: MouseEvent) => {
 		const { clientX: x, clientY: y, button } = event;
 		if (button !== 0) {
 			return;
 		}
 		isDrawing = true;
-		eraserBounds = { x: x - 2, y: y - 2, width: 4, height: 4 };
+		const eraserBounds = { x: x - 2, y: y - 2, width: 4, height: 4 };
 		if (toolManager.selectedTool === ToolName.Pen) {
 			currentStroke = new Stroke([{ x, y }]);
 		} else {
-			candidateStrokeSegments = new Set(qt.getCandidateStrokeSegments(eraserBounds));
+			ds.stashStrokes(eraserBounds);
 		}
 	};
-	// $effect(() => {
-	// 	$inspect(candidateStrokeSegments)
-	// })
 
-	const onPointerMove = (event: MouseEvent) => {
-		// console.log("onPointerMove")
+	const onMouseMove = (event: MouseEvent) => {
 		if (!isDrawing) {
 			return;
 		}
 		const { clientX: x, clientY: y, button } = event;
+		const eraserBounds = { x: x - 2, y: y - 2, width: 4, height: 4 };
+
 		if (toolManager.selectedTool === ToolName.Pen) {
 			if (currentStroke) {
-				currentStroke?.points.push({ x, y });
-				currentStroke.generatePath();
+				currentStroke.addPoint({ x, y });
 			}
 		} else {
-			// eraserBounds = { x: x - 25, y: y - 25, width: 50, height: 50 };
-			eraserBounds = { x: x - 2, y: y - 2, width: 4, height: 4 };
-			// candidateStrokeSegments = candidateStrokeSegments?.concat(qt.getCandidateStrokeSegments(eraserBounds))
-			const strokesToErase = new Set();
-			for (const segment of qt.getCandidateStrokeSegments(eraserBounds)) {
-				if (strokesToErase.has(segment.parentStrokeId)) {
-					continue;
-				}
-				// candidateStrokeSegments?.add(segment);
-				const eraserCircle = ShapeInfo.circle({ x, y }, 2);
-				const candidateStrokePath = ShapeInfo.path(
-					getSvgPathFromStroke(
-						getStroke(strokes.get(segment.parentStrokeId)?.points || [], {
-							size: 2,
-							thinning: 0.5,
-							smoothing: 0.5
-						})
-					)
-				);
-
-				const result = Intersection.intersect(eraserCircle, candidateStrokePath);
-				if (result.status === 'Intersection') {
-					strokesToErase.add(segment.parentStrokeId);
-					strokes.delete(segment.parentStrokeId);
-					qt.delete(segment.parentStrokeId);
-					console.log(result);
-				}
-			}
+			ds.stashStrokes(eraserBounds);
 		}
-		// console.log(currentStroke?.path)
 	};
 
-	const onPointerUp = (event: MouseEvent) => {
-		// console.log("onPointerUp")
+	const onMouseUp = (event: MouseEvent) => {
 		if (!isDrawing) {
 			return;
 		}
 		isDrawing = false;
 		if (toolManager.selectedTool === ToolName.Pen) {
 			if (currentStroke) {
-				currentStroke.segmentizeStroke();
-				qt.insertStroke(currentStroke);
+				ds.insertStroke(currentStroke);
 				debug_onQtUpdate();
-				strokes.set(currentStroke);
 				currentStroke = new Stroke([]);
-				// console.log(currentStroke)
 			}
 		} else {
-			// $inspect(candidateStrokeSegments)
-			// console.log($state.snapshot(candidateStrokeSegments));
-			console.log(candidateStrokeSegments);
-			// candidateStrokeSegments?.forEach((stroke) => {
-			// 	strokes.delete(stroke.parentStrokeId);
-			// 	qt.delete(stroke.parentStrokeId);
-			// });
-
 			candidateStrokeSegments = new Set();
 		}
-		// console.log(strokes);
 	};
 </script>
 
-<button onmousedown={onPointerDown} onmousemove={onPointerMove} onmouseup={onPointerUp}>
+<button onmousedown={onMouseDown} onmousemove={onMouseMove} onmouseup={onMouseUp}>
 	<svg bind:this={svg} style="border: 1px solid #ccc;">
-		{#each strokes.values() as stroke}
+		{#each ds.strokes.values() as stroke}
 			<path d={stroke.path} fill="black" stroke="black" />
 		{/each}
 		{#if currentStroke}
@@ -162,7 +112,7 @@
 		></div>
 	{/each}
 
-	{#each strokes.values() as stroke}
+	{#each ds.strokes.values() as stroke}
 		{#each stroke.points as point}
 			<div class="points" style:--x={point.x} style:--y={point.y}></div>
 		{/each}

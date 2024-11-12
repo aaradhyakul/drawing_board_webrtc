@@ -1,25 +1,8 @@
-import { Window } from '$lib/state/window.svelte';
-// import { KeyedSet } from '$lib/utils/keyedSet';
 import { getSvgPathFromStroke } from '$lib/utils/getSvgPathFromStroke';
 import { ShapeInfo, Intersection } from 'kld-intersections';
-import { getStrokeOutlinePoints, getStroke } from 'perfect-freehand';
-import { SvelteMap } from 'svelte/reactivity';
+import { KeyedSet } from '$lib/utils/keyedSet.svelte';
+import { getStroke } from 'perfect-freehand';
 
-// class QuadTreeRoot {
-// 	quadTree: QuadTree;
-
-// 	constructor() {
-// 		this.quadTree = new QuadTree(
-// 			{
-// 				x: -Infinity,
-// 				y: -Infinity,
-// 				width: Infinity,
-// 				height: Infinity
-// 			},
-// 			0
-// 		);
-// 	}
-// }
 export class QuadTree {
 	static MAX: number = 1e3;
 	static MIN: number = -1e3;
@@ -60,46 +43,15 @@ export class QuadTree {
 				});
 			}
 		}
-		// candidateStrokeSegments = candidateStrokeSegments.filter((segment) => {
-		// 	// Check if the segment's bounds overlap with the given bounds
-		// 	return !(
-		// 		segment.bounds.x + segment.bounds.width < bounds.x || // segment is left of bounds
-		// 		segment.bounds.x > bounds.x + bounds.width || // segment is right of bounds
-		// 		segment.bounds.y + segment.bounds.height < bounds.y || // segment is above bounds
-		// 		segment.bounds.y > bounds.y + bounds.height
-		// 	); // segment is below bounds
-		// });
+		candidateStrokeSegments = candidateStrokeSegments.filter((segment) => {
+			return !(
+				segment.bounds.x + segment.bounds.width < bounds.x || // segment is left of bounds
+				segment.bounds.x > bounds.x + bounds.width || // segment is right of bounds
+				segment.bounds.y + segment.bounds.height < bounds.y || // segment is above bounds
+				segment.bounds.y > bounds.y + bounds.height
+			); // segment is below bounds
+		});
 		return candidateStrokeSegments;
-	}
-
-	eraseStrokes(eraserX: number, eraserY: number, eraserRadius: number) {
-		const eraserBounds = {
-			x: eraserX - eraserRadius,
-			y: eraserY - eraserRadius,
-			width: eraserRadius * 2,
-			height: eraserRadius * 2
-		};
-
-		const candidateStrokeSegments = this.getCandidateStrokeSegments(eraserBounds);
-		const strokesToErase = new Set<Symbol>();
-
-		for (const strokeSegment of candidateStrokeSegments) {
-			if (strokesToErase.has(strokeSegment.parentStrokeId)) {
-				continue;
-			}
-			const eraserCircle = ShapeInfo.circle({ x: eraserX, y: eraserY }, eraserRadius);
-			const candidateStrokePath = ShapeInfo.path(
-				getSvgPathFromStroke(getStroke(strokeSegment.points))
-			);
-			const result = Intersection.intersect(eraserCircle, candidateStrokePath);
-			if (result.points.length) {
-				strokesToErase.add(strokeSegment.parentStrokeId);
-			}
-		}
-
-		for (const strokeId of strokesToErase) {
-			this.delete(strokeId);
-		}
 	}
 
 	delete(strokeId: Symbol) {
@@ -132,6 +84,7 @@ export class QuadTree {
 	}
 
 	insertStroke(stroke: Stroke) {
+		stroke.segmentizeStroke();
 		for (const segment of stroke.segments) {
 			this.insertStrokeSegment(segment);
 		}
@@ -155,14 +108,6 @@ export class QuadTree {
 			if (!this.children.length) {
 				this.split();
 			}
-			// for (const segment of this.strokeSegmentsMap.get(strokeSegment.parentStrokeId)!) {
-			// const index = this.getIndex(segment.bounds);
-			// if (index !== -1) {
-			// 	this.children[index].insertStrokeSegment(segment);
-			// } else {
-			// 	remainingObjects.push(segment);
-			// }
-			// }
 			this.strokeSegmentsMap.forEach((segments, id) => {
 				this.numStrokeSegments = 0;
 				const remainingObjects: StrokeSegment[] = [];
@@ -177,9 +122,6 @@ export class QuadTree {
 				this.strokeSegmentsMap.set(id, remainingObjects);
 				this.numStrokeSegments += remainingObjects.length;
 			});
-			// if (this.numStrokeSegments > QuadTree.maxStrokeSegments) {
-			// 	QuadTree.maxStrokeSegments *= 2;
-			// }
 		}
 	}
 
@@ -208,18 +150,26 @@ export class Stroke {
 	static idCounter = 0;
 	static segmentSize = 50;
 	id: Symbol;
-	points: Point[];
+	#points: Point[];
 	path?: string = $state('');
 	segments: StrokeSegment[] = [];
 	constructor(points: Point[]) {
-		this.points = points;
-		// this.segments = this.segmentizeStroke(Stroke.segmentSize);
+		this.#points = points;
 		this.id = Symbol(`stroke-${Stroke.idCounter++}`);
+	}
+
+	addPoint(point: Point) {
+		this.#points.push(point);
+		this.generatePath();
+	}
+
+	get points() {
+		return this.#points;
 	}
 
 	generatePath() {
 		this.path = getSvgPathFromStroke(
-			getStroke(this.points, {
+			getStroke(this.#points, {
 				size: 2,
 				thinning: 0.5,
 				smoothing: 0.5
@@ -237,8 +187,8 @@ export class Stroke {
 		let currentSegmentHeight = 0;
 
 		let j = 0;
-		for (let i = 0, removeCnt = 0; i < this.points.length; i++, removeCnt++) {
-			const point = this.points[i];
+		for (let i = 0, removeCnt = 0; i < this.#points.length; i++, removeCnt++) {
+			const point = this.#points[i];
 			minX = Math.min(minX, point.x);
 			minY = Math.min(minY, point.y);
 			maxX = Math.max(maxX, point.x);
@@ -247,7 +197,7 @@ export class Stroke {
 			currentSegmentHeight = maxY - minY;
 
 			if (currentSegmentWidth > Stroke.segmentSize || currentSegmentHeight > Stroke.segmentSize) {
-				segments.push(new StrokeSegment(this.points.slice(j, j + removeCnt), this.id));
+				segments.push(new StrokeSegment(this.#points.slice(j, j + removeCnt), this.id));
 				minX = Infinity;
 				minY = Infinity;
 				maxX = -Infinity;
@@ -260,7 +210,7 @@ export class Stroke {
 		}
 
 		if (segments.length === 0) {
-			segments.push(new StrokeSegment(this.points, this.id));
+			segments.push(new StrokeSegment(this.#points, this.id));
 		}
 		this.segments = segments;
 	}
@@ -292,67 +242,80 @@ export class StrokeSegment {
 	}
 }
 
-export class KeyedSet<T> {
-	#keyProp: keyof T;
-	items: SvelteMap<T[keyof T], T> = new SvelteMap();
+type eraserSettings = {
+	radius: number;
+	color?: string;
+};
 
-	constructor(keyProp: keyof T) {
-		this.#keyProp = keyProp;
-	}
+type penSettings = {
+	size: number;
+	thinning: number;
+	smoothing: number;
+};
 
-	set(item: T) {
-		this.items.set(item[this.#keyProp], item);
-	}
+class ToolSettings {
+	eraser: eraserSettings = {
+		radius: 2
+	};
+	pen: penSettings = {
+		size: 2,
+		thinning: 0.5,
+		smoothing: 0.5
+	};
+}
+class State {
+	strokes: KeyedSet<Stroke> = new KeyedSet('id');
+	stashedStrokes: KeyedSet<Stroke> = new KeyedSet('id');
+	qt = $state.raw(
+		new QuadTree(
+			{
+				x: 0,
+				y: 0,
+				width: QuadTree.MAX,
+				height: QuadTree.MAX / 2
+			},
+			0
+		)
+	);
+	stashsedStrokes: Stroke[] = [];
+	toolSettings = new ToolSettings();
 
-	get(key: T[keyof T]): T | undefined {
-		if (this.items.has(key)) {
-			return this.items.get(key);
+	stashStrokes(bounds: Bounds): boolean {
+		debugger;
+		const { radius: eraserRadius } = this.toolSettings.eraser;
+		const eraserX = bounds.x + eraserRadius;
+		const eraserY = bounds.y + eraserRadius;
+		const strokesToStash = new Set();
+		const candidateStrokeSegments = this.qt.getCandidateStrokeSegments(bounds);
+		for (const segment of candidateStrokeSegments) {
+			if (strokesToStash.has(segment.parentStrokeId)) {
+				continue;
+			}
+			const eraserCircle = ShapeInfo.circle(eraserX, eraserY, eraserRadius);
+			const candidateStrokePath = ShapeInfo.path(
+				this.strokes.get(segment.parentStrokeId)?.path || ''
+			);
+			// const candidateStrokePath = ShapeInfo.path(
+			// 	getSvgPathFromStroke(
+			// 		getStroke(this.strokes.get(segment.parentStrokeId)?.points || [], this.toolSettings.pen)
+			// 	)
+			// );
+
+			const result = Intersection.intersect(eraserCircle, candidateStrokePath);
+			if (result.status === 'Intersection') {
+				strokesToStash.add(segment.parentStrokeId);
+				this.stashedStrokes.set(this.strokes.get(segment.parentStrokeId));
+				this.strokes.delete(segment.parentStrokeId);
+				this.qt.delete(segment.parentStrokeId);
+			}
 		}
+		return strokesToStash.size > 0;
 	}
 
-	has(key: T[keyof T]): boolean {
-		return this.items.has(key);
-	}
-
-	delete(key: T[keyof T]): boolean {
-		return this.items.delete(key);
-	}
-
-	values(): IterableIterator<T> {
-		return this.items.values();
+	insertStroke(stroke: Stroke) {
+		this.qt.insertStroke(stroke);
+		this.strokes.set(stroke);
 	}
 }
 
-// export class Strokes {
-// 	#quadTree = $derived.by(
-// 		() => new QuadTree({ x: 0, y: 0, width: Window.width, height: Window.height })
-// 	);
-// }
-
-// export strokes: KeyedSet<Stroke>('id') = $state(new KeyedSet('id'));
-// export const strokes: KeyedSet<Stroke> = $state(new KeyedSet('id'));
-export const strokes: KeyedSet<Stroke> = new KeyedSet('id');
-// export const qt = $state.raw(new QuadTreeRoot());
-export const qt = $state.raw(
-	new QuadTree(
-		{
-			x: 0,
-			y: 0,
-			width: QuadTree.MAX,
-			height: QuadTree.MAX / 2
-		},
-		0
-	)
-);
-
-// export const qt = $state.raw(
-// 	new QuadTree(
-// 		{
-// 			x: QuadTree.MIN,
-// 			y: QuadTree.MIN,
-// 			width: 3 * QuadTree.MAX,
-// 			height: 3 * QuadTree.MAX
-// 		},
-// 		0
-// 	)
-// );
+export const ds = $state(new State());
