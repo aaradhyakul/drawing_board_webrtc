@@ -282,7 +282,6 @@ class State {
 	toolSettings = new ToolSettings();
 
 	stashStrokes(bounds: Bounds): boolean {
-		debugger;
 		const { radius: eraserRadius } = this.toolSettings.eraser;
 		const eraserX = bounds.x + eraserRadius;
 		const eraserY = bounds.y + eraserRadius;

@@ -91,9 +91,67 @@
 			candidateStrokeSegments = new Set();
 		}
 	};
+
+	const onTouchStart = (event: TouchEvent) => {
+		console.log(event);
+		event.preventDefault();
+		if (event.changedTouches.length > 1) {
+			return;
+		}
+		const { pageX: x, pageY: y } = event.changedTouches[0];
+
+		isDrawing = true;
+		const eraserBounds = { x: x - 2, y: y - 2, width: 4, height: 4 };
+		if (toolManager.selectedTool === ToolName.Pen) {
+			currentStroke = new Stroke([{ x, y }]);
+		} else {
+			ds.stashStrokes(eraserBounds);
+		}
+	};
+
+	const onTouchMove = (event: TouchEvent) => {
+		console.log(event);
+		event.preventDefault();
+		if (!isDrawing) {
+			return;
+		}
+		const { pageX: x, pageY: y } = event.changedTouches[0];
+		const eraserBounds = { x: x - 2, y: y - 2, width: 4, height: 4 };
+		if (toolManager.selectedTool === ToolName.Pen) {
+			if (currentStroke) {
+				currentStroke.addPoint({ x, y });
+			}
+		} else {
+			ds.stashStrokes(eraserBounds);
+		}
+	};
+
+	const onTouchEnd = (event: TouchEvent) => {
+		console.log(event);
+		if (!isDrawing) {
+			return;
+		}
+		isDrawing = false;
+		if (toolManager.selectedTool === ToolName.Pen) {
+			if (currentStroke) {
+				ds.insertStroke(currentStroke);
+				debug_onQtUpdate();
+				currentStroke = new Stroke([]);
+			}
+		} else {
+			candidateStrokeSegments = new Set();
+		}
+	};
 </script>
 
-<button onmousedown={onMouseDown} onmousemove={onMouseMove} onmouseup={onMouseUp}>
+<button
+	onmousedown={onMouseDown}
+	onmousemove={onMouseMove}
+	onmouseup={onMouseUp}
+	ontouchstart={onTouchStart}
+	ontouchmove={onTouchMove}
+	ontouchend={onTouchEnd}
+>
 	<svg bind:this={svg} style="border: 1px solid #ccc;">
 		{#each ds.strokes.values() as stroke}
 			<path d={stroke.path} fill="black" stroke="black" />
@@ -121,6 +179,9 @@
 
 <style>
 	svg {
+		position: fixed;
+		top: 0;
+		left: 0;
 		width: 100vw;
 		height: 100vh;
 		background-color: hsl(50, 100%, 92%);
