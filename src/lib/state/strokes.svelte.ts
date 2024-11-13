@@ -1,7 +1,7 @@
 import { getSvgPathFromStroke } from '$lib/utils/getSvgPathFromStroke';
 import { ShapeInfo, Intersection } from 'kld-intersections';
 import { KeyedSet } from '$lib/utils/keyedSet.svelte';
-import { getStroke } from 'perfect-freehand';
+import { getStroke, getStrokeOutlinePoints, getStrokePoints } from 'perfect-freehand';
 import { Window } from './window.svelte';
 
 export class QuadTree {
@@ -44,14 +44,14 @@ export class QuadTree {
 				});
 			}
 		}
-		// candidateStrokeSegments = candidateStrokeSegments.filter((segment) => {
-		// 	return !(
-		// 		segment.bounds.x + segment.bounds.width < bounds.x || // segment is left of bounds
-		// 		segment.bounds.x > bounds.x + bounds.width || // segment is right of bounds
-		// 		segment.bounds.y + segment.bounds.height < bounds.y || // segment is above bounds
-		// 		segment.bounds.y > bounds.y + bounds.height
-		// 	); // segment is below bounds
-		// });
+		candidateStrokeSegments = candidateStrokeSegments.filter((segment) => {
+			return !(
+				segment.bounds.x + segment.bounds.width < bounds.x || // segment is left of bounds
+				segment.bounds.x > bounds.x + bounds.width || // segment is right of bounds
+				segment.bounds.y + segment.bounds.height < bounds.y || // segment is above bounds
+				segment.bounds.y > bounds.y + bounds.height
+			); // segment is below bounds
+		});
 		return candidateStrokeSegments;
 	}
 
@@ -187,8 +187,10 @@ export class Stroke {
 		let currentSegmentWidth = 0;
 		let currentSegmentHeight = 0;
 
-		let j = 0;
-		for (let i = 0, removeCnt = 0; i < this.#points.length; i++, removeCnt++) {
+		let j = 0,
+			i = 0,
+			removeCnt = 0;
+		for (; i < this.#points.length; i++, removeCnt++) {
 			const point = this.#points[i];
 			minX = Math.min(minX, point.x);
 			minY = Math.min(minY, point.y);
@@ -205,14 +207,15 @@ export class Stroke {
 				maxY = -Infinity;
 				currentSegmentWidth = 0;
 				currentSegmentHeight = 0;
-				removeCnt = 0;
-				j = i;
+				removeCnt = 1;
+				j = i - 1;
 			}
 		}
+		if (removeCnt) segments.push(new StrokeSegment(this.#points.slice(j, j + removeCnt), this.id));
 
-		if (segments.length === 0) {
-			segments.push(new StrokeSegment(this.#points, this.id));
-		}
+		// if (segments.length === 0) {
+		// 	segments.push(new StrokeSegment(this.#points, this.id));
+		// }
 		this.segments = segments;
 	}
 }
@@ -250,8 +253,8 @@ type eraserSettings = {
 
 type penSettings = {
 	size: number;
-	thinning: number;
-	smoothing: number;
+	thinning?: number;
+	smoothing?: number;
 };
 
 class ToolSettings {
@@ -261,7 +264,8 @@ class ToolSettings {
 	pen: penSettings = {
 		size: 2,
 		thinning: 0.5,
-		smoothing: 0.5
+		smoothing: 1
+		// smoothing: 0.5
 	};
 }
 class State {
@@ -313,6 +317,9 @@ class State {
 	}
 
 	insertStroke(stroke: Stroke) {
+		// console.log(stroke.points);
+		// const st = getStrokePoints(stroke.points);
+		// console.log(st);
 		this.qt.insertStroke(stroke);
 		this.strokes.set(stroke);
 	}
