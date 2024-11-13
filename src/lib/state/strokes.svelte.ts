@@ -169,13 +169,7 @@ export class Stroke {
 	}
 
 	generatePath() {
-		this.path = getSvgPathFromStroke(
-			getStroke(this.#points, {
-				size: 2,
-				thinning: 0.5,
-				smoothing: 0.5
-			})
-		);
+		this.path = getSvgPathFromStroke(getStroke(this.#points, ds.toolSettings.pen));
 	}
 
 	segmentizeStroke() {
@@ -189,7 +183,7 @@ export class Stroke {
 
 		let j = 0,
 			i = 0,
-			removeCnt = 0;
+			removeCnt = 1;
 		for (; i < this.#points.length; i++, removeCnt++) {
 			const point = this.#points[i];
 			minX = Math.min(minX, point.x);
@@ -259,12 +253,12 @@ type penSettings = {
 
 class ToolSettings {
 	eraser: eraserSettings = {
-		radius: 2
+		radius: 10
 	};
 	pen: penSettings = {
-		size: 2,
+		size: 4,
 		thinning: 0.5,
-		smoothing: 1
+		smoothing: 0.5
 		// smoothing: 0.5
 	};
 }

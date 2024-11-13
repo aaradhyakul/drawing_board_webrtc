@@ -101,7 +101,13 @@
 		const { pageX: x, pageY: y } = event.changedTouches[0];
 
 		isDrawing = true;
-		const eraserBounds = { x: x - 2, y: y - 2, width: 4, height: 4 };
+		const eraserRadius = ds.toolSettings.eraser.radius;
+		const eraserBounds = {
+			x: x - eraserRadius,
+			y: y - eraserRadius,
+			width: 2 * eraserRadius,
+			height: 2 * eraserRadius
+		};
 		if (toolManager.selectedTool === ToolName.Pen) {
 			currentStroke = new Stroke([{ x, y }]);
 		} else {
@@ -114,7 +120,13 @@
 			return;
 		}
 		const { pageX: x, pageY: y } = event.changedTouches[0];
-		const eraserBounds = { x: x - 2, y: y - 2, width: 4, height: 4 };
+		const eraserRadius = ds.toolSettings.eraser.radius;
+		const eraserBounds = {
+			x: x - eraserRadius,
+			y: y - eraserRadius,
+			width: 2 * eraserRadius,
+			height: 2 * eraserRadius
+		};
 		if (toolManager.selectedTool === ToolName.Pen) {
 			if (currentStroke) {
 				currentStroke.addPoint({ x, y });
