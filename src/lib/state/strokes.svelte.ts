@@ -306,7 +306,7 @@ class State {
 			// );
 
 			const result = Intersection.intersect(eraserCircle, candidateStrokePath);
-			if (result.status === 'Intersection') {
+			if (result.status === 'Intersection' || segment.points.length === 1) {
 				strokesToStash.add(segment.parentStrokeId);
 				this.stashedStrokes.set(this.strokes.get(segment.parentStrokeId));
 				this.strokes.delete(segment.parentStrokeId);
