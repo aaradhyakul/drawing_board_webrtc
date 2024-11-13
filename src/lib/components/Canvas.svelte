@@ -15,6 +15,7 @@
 	let isDrawing = $state(false);
 	let candidateStrokeSegments = $state<Set<StrokeSegment>>();
 	let bounds = $state<Bounds[]>([]);
+	let devMode = $state(true);
 
 	const debug_onQtUpdate = () => {
 		const dfs = (root: QuadTree, temp: Bounds[]) => {
@@ -52,7 +53,13 @@
 			return;
 		}
 		isDrawing = true;
-		const eraserBounds = { x: x - 2, y: y - 2, width: 4, height: 4 };
+		const eraserRadius = ds.toolSettings.eraser.radius;
+		const eraserBounds = {
+			x: x - eraserRadius,
+			y: y - eraserRadius,
+			width: 2 * eraserRadius,
+			height: 2 * eraserRadius
+		};
 		if (toolManager.selectedTool === ToolName.Pen) {
 			currentStroke = new Stroke([{ x, y }]);
 		} else {
@@ -65,7 +72,13 @@
 			return;
 		}
 		const { clientX: x, clientY: y, button } = event;
-		const eraserBounds = { x: x - 2, y: y - 2, width: 4, height: 4 };
+		const eraserRadius = ds.toolSettings.eraser.radius;
+		const eraserBounds = {
+			x: x - eraserRadius,
+			y: y - eraserRadius,
+			width: 2 * eraserRadius,
+			height: 2 * eraserRadius
+		};
 
 		if (toolManager.selectedTool === ToolName.Pen) {
 			if (currentStroke) {
@@ -94,8 +107,11 @@
 
 	const onTouchStart = (event: TouchEvent) => {
 		// event.preventDefault();
+		// console.log(event);
 		if (event.changedTouches.length > 1 || event.touches.length >= 2) {
-			console.log('more than 2 fingers');
+			// console.log('more than 2 fingers');
+			isDrawing = false;
+			currentStroke = new Stroke([]);
 			return;
 		}
 		const { pageX: x, pageY: y } = event.changedTouches[0];
@@ -119,6 +135,7 @@
 		if (!isDrawing) {
 			return;
 		}
+		// console.log(event);
 		const { pageX: x, pageY: y } = event.changedTouches[0];
 		const eraserRadius = ds.toolSettings.eraser.radius;
 		const eraserBounds = {
@@ -170,21 +187,27 @@
 			<path d={currentStroke.path} fill="black" stroke="black" />
 		{/if}
 	</svg>
-	{#each bounds as bound}
-		<div
-			class="bounds"
-			style:--x={bound.x}
-			style:--y={bound.y}
-			style:--w={bound.width}
-			style:--h={bound.height}
-		></div>
-	{/each}
-
-	{#each ds.strokes.values() as stroke}
-		{#each stroke.points as point}
-			<div class="points" style:--x={point.x} style:--y={point.y}></div>
+	<label class="devmode-label">
+		<input type="checkbox" bind:checked={devMode} />
+		<div>Developer Mode</div>
+	</label>
+	{#if devMode}
+		{#each bounds as bound}
+			<div
+				class="bounds"
+				style:--x={bound.x}
+				style:--y={bound.y}
+				style:--w={bound.width}
+				style:--h={bound.height}
+			></div>
 		{/each}
-	{/each}
+
+		{#each ds.strokes.values() as stroke}
+			{#each stroke.points as point}
+				<div class="points" style:--x={point.x} style:--y={point.y}></div>
+			{/each}
+		{/each}
+	{/if}
 </button>
 
 <style>
@@ -195,6 +218,18 @@
 		width: 100%;
 		height: 100%;
 		background-color: hsl(50, 100%, 92%);
+	}
+
+	.devmode-label {
+		position: absolute;
+		font-size: var(--text-xs);
+		top: 5px;
+		left: 5px;
+		z-index: 5;
+		display: flex;
+		gap: 5px;
+		padding: 5px;
+		align-items: center;
 	}
 
 	button.svg-container {
