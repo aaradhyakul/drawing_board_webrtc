@@ -93,9 +93,9 @@
 	};
 
 	const onTouchStart = (event: TouchEvent) => {
-		console.log(event);
-		event.preventDefault();
-		if (event.changedTouches.length > 1) {
+		// event.preventDefault();
+		if (event.changedTouches.length > 1 || event.touches.length >= 2) {
+			console.log('more than 2 fingers');
 			return;
 		}
 		const { pageX: x, pageY: y } = event.changedTouches[0];
@@ -110,8 +110,6 @@
 	};
 
 	const onTouchMove = (event: TouchEvent) => {
-		console.log(event);
-		event.preventDefault();
 		if (!isDrawing) {
 			return;
 		}
@@ -127,7 +125,6 @@
 	};
 
 	const onTouchEnd = (event: TouchEvent) => {
-		console.log(event);
 		if (!isDrawing) {
 			return;
 		}
@@ -151,8 +148,9 @@
 	ontouchstart={onTouchStart}
 	ontouchmove={onTouchMove}
 	ontouchend={onTouchEnd}
+	class="svg-container"
 >
-	<svg bind:this={svg} style="border: 1px solid #ccc;">
+	<svg bind:this={svg} style="border: 1px solid #ccc;" role="img">
 		{#each ds.strokes.values() as stroke}
 			<path d={stroke.path} fill="black" stroke="black" />
 		{/each}
@@ -182,9 +180,13 @@
 		position: fixed;
 		top: 0;
 		left: 0;
-		width: 100vw;
-		height: 100vh;
+		width: 100%;
+		height: 100%;
 		background-color: hsl(50, 100%, 92%);
+	}
+
+	button.svg-container {
+		touch-action: none;
 	}
 	div.bounds {
 		position: absolute;
