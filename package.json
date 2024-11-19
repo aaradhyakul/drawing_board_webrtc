@@ -29,6 +29,9 @@
 		"vite": "^5.0.3"
 	},
 	"dependencies": {
+		"@automerge/automerge": "^2.2.8",
+		"@automerge/automerge-repo": "^1.2.1",
+		"@automerge/automerge-repo-storage-indexeddb": "^1.2.1",
 		"cookie": "^1.0.1",
 		"kld-intersections": "^0.7.0",
 		"perfect-freehand": "^1.2.2"

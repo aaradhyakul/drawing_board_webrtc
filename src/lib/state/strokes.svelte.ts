@@ -3,6 +3,7 @@ import { ShapeInfo, Intersection } from 'kld-intersections';
 import { KeyedSet } from '$lib/utils/keyedSet.svelte';
 import { getStroke, getStrokeOutlinePoints, getStrokePoints } from 'perfect-freehand';
 import { Window } from './window.svelte';
+import * as automerge from '@automerge/automerge';
 
 export class QuadTree {
 	static MAX: number = 1e3;
@@ -24,6 +25,13 @@ export class QuadTree {
 		console.dir(this, { depth: null });
 	}
 
+	getUniqueStrokeIds(strokeSegments: StrokeSegment[]): Set<Symbol> {
+		const uniqueStrokes = new Set<Symbol>();
+		for (const segment of strokeSegments) {
+			uniqueStrokes.add(segment.parentStrokeId);
+		}
+		return uniqueStrokes;
+	}
 	//returns the different candidate strokeSegments
 	getCandidateStrokeSegments(bounds: Bounds) {
 		let candidateStrokeSegments: StrokeSegment[] = [];
@@ -87,8 +95,10 @@ export class QuadTree {
 	insertStroke(stroke: Stroke) {
 		stroke.segmentizeStroke();
 		for (const segment of stroke.segments) {
+			// console.log(segment);
 			this.insertStrokeSegment(segment);
 		}
+		// console.log(this.strokeSegmentsMap);
 	}
 
 	insertStrokeSegment(strokeSegment: StrokeSegment) {
@@ -151,17 +161,20 @@ export class Stroke {
 	static idCounter = 0;
 	static segmentSize = 50;
 	id: Symbol;
-	#points: Point[];
+	#points: Point[] = [];
 	path?: string = $state('');
 	segments: StrokeSegment[] = [];
 	constructor(points: Point[]) {
-		this.#points = points;
+		for (const point of points) {
+			this.addPoint(point);
+		}
 		this.id = Symbol(`stroke-${Stroke.idCounter++}`);
 	}
 
 	addPoint(point: Point) {
 		this.#points.push(point);
 		this.generatePath();
+		console.log(point);
 	}
 
 	get points() {
@@ -253,12 +266,12 @@ type penSettings = {
 
 class ToolSettings {
 	eraser: eraserSettings = {
-		radius: 10
+		radius: 5
 	};
 	pen: penSettings = {
 		size: 4,
-		thinning: 0.5,
-		smoothing: 0.5
+		thinning: 0,
+		smoothing: 0
 		// smoothing: 0.5
 	};
 }
@@ -283,16 +296,11 @@ class State {
 		const { radius: eraserRadius } = this.toolSettings.eraser;
 		const eraserX = bounds.x + eraserRadius;
 		const eraserY = bounds.y + eraserRadius;
-		const strokesToStash = new Set();
 		const candidateStrokeSegments = this.qt.getCandidateStrokeSegments(bounds);
-		for (const segment of candidateStrokeSegments) {
-			if (strokesToStash.has(segment.parentStrokeId)) {
-				continue;
-			}
+		for (const strokeId of this.qt.getUniqueStrokeIds(candidateStrokeSegments)) {
+			const stroke = this.strokes.get(strokeId);
 			const eraserCircle = ShapeInfo.circle(eraserX, eraserY, eraserRadius);
-			const candidateStrokePath = ShapeInfo.path(
-				this.strokes.get(segment.parentStrokeId)?.path || ''
-			);
+			const candidateStrokePath = ShapeInfo.path(stroke?.path || '');
 			// const candidateStrokePath = ShapeInfo.path(
 			// 	getSvgPathFromStroke(
 			// 		getStroke(this.strokes.get(segment.parentStrokeId)?.points || [], this.toolSettings.pen)
@@ -300,14 +308,35 @@ class State {
 			// );
 
 			const result = Intersection.intersect(eraserCircle, candidateStrokePath);
-			if (result.status === 'Intersection' || segment.points.length === 1) {
-				strokesToStash.add(segment.parentStrokeId);
-				this.stashedStrokes.set(this.strokes.get(segment.parentStrokeId));
-				this.strokes.delete(segment.parentStrokeId);
-				this.qt.delete(segment.parentStrokeId);
+			if (result.status === 'Intersection' || stroke?.points.length === 1) {
+				this.stashedStrokes.set(this.strokes.get(strokeId));
+				this.strokes.delete(strokeId);
+				this.qt.delete(strokeId);
 			}
 		}
-		return strokesToStash.size > 0;
+		// for (const segment of candidateStrokeSegments) {
+		// 	if (strokesToStash.has(segment.parentStrokeId)) {
+		// 		continue;
+		// 	}
+		// 	const eraserCircle = ShapeInfo.circle(eraserX, eraserY, eraserRadius);
+		// 	const candidateStrokePath = ShapeInfo.path(
+		// 		this.strokes.get(segment.parentStrokeId)?.path || ''
+		// 	);
+		// const candidateStrokePath = ShapeInfo.path(
+		// 	getSvgPathFromStroke(
+		// 		getStroke(this.strokes.get(segment.parentStrokeId)?.points || [], this.toolSettings.pen)
+		// 	)
+		// );
+
+		// 	const result = Intersection.intersect(eraserCircle, candidateStrokePath);
+		// 	if (result.status === 'Intersection' || segment.points.length === 1) {
+		// 		strokesToStash.add(segment.parentStrokeId);
+		// 		this.stashedStrokes.set(this.strokes.get(segment.parentStrokeId));
+		// 		this.strokes.delete(segment.parentStrokeId);
+		// 		this.qt.delete(segment.parentStrokeId);
+		// 	}
+		// }
+		return true;
 	}
 
 	insertStroke(stroke: Stroke) {

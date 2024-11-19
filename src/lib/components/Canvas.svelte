@@ -13,9 +13,13 @@
 	let selectedTool = $derived(toolManager.selectedTool);
 	let currentStroke = $state<Stroke>();
 	let isDrawing = $state(false);
-	let candidateStrokeSegments = $state<Set<StrokeSegment>>();
+	let candidateStrokeSegments = $state.raw<Set<StrokeSegment>>();
 	let bounds = $state<Bounds[]>([]);
 	let devMode = $state(true);
+	let pointerX = $state(0);
+	let pointerY = $state(0);
+	let eraserRadius = $derived(ds.toolSettings.eraser.radius);
+	let cursorClass = $state('eraser-cursor');
 
 	const debug_onQtUpdate = () => {
 		const dfs = (root: QuadTree, temp: Bounds[]) => {
@@ -48,12 +52,11 @@
 	});
 
 	const onMouseDown = (event: MouseEvent) => {
-		const { clientX: x, clientY: y, button } = event;
+		const { pageX: x, pageY: y, button } = event;
 		if (button !== 0) {
 			return;
 		}
 		isDrawing = true;
-		const eraserRadius = ds.toolSettings.eraser.radius;
 		const eraserBounds = {
 			x: x - eraserRadius,
 			y: y - eraserRadius,
@@ -68,11 +71,13 @@
 	};
 
 	const onMouseMove = (event: MouseEvent) => {
+		const { pageX: x, pageY: y, button } = event;
+		pointerX = x;
+		pointerY = y;
+		// console.log(pointerX, pointerY);
 		if (!isDrawing) {
 			return;
 		}
-		const { clientX: x, clientY: y, button } = event;
-		const eraserRadius = ds.toolSettings.eraser.radius;
 		const eraserBounds = {
 			x: x - eraserRadius,
 			y: y - eraserRadius,
@@ -94,6 +99,7 @@
 			return;
 		}
 		isDrawing = false;
+		// console.log(currentStroke);
 		if (toolManager.selectedTool === ToolName.Pen) {
 			if (currentStroke) {
 				ds.insertStroke(currentStroke);
@@ -117,7 +123,6 @@
 		const { pageX: x, pageY: y } = event.changedTouches[0];
 
 		isDrawing = true;
-		const eraserRadius = ds.toolSettings.eraser.radius;
 		const eraserBounds = {
 			x: x - eraserRadius,
 			y: y - eraserRadius,
@@ -137,7 +142,6 @@
 		}
 		// console.log(event);
 		const { pageX: x, pageY: y } = event.changedTouches[0];
-		const eraserRadius = ds.toolSettings.eraser.radius;
 		const eraserBounds = {
 			x: x - eraserRadius,
 			y: y - eraserRadius,
@@ -168,6 +172,13 @@
 			candidateStrokeSegments = new Set();
 		}
 	};
+
+	const onMouseLeave = (event: MouseEvent) => {
+		cursorClass = '';
+	};
+	const onMouseEnter = (event: MouseEvent) => {
+		cursorClass = 'eraser-cursor';
+	};
 </script>
 
 <button
@@ -177,6 +188,8 @@
 	ontouchstart={onTouchStart}
 	ontouchmove={onTouchMove}
 	ontouchend={onTouchEnd}
+	onmouseleave={onMouseLeave}
+	onmouseenter={onMouseEnter}
 	class="svg-container"
 >
 	<svg bind:this={svg} style="border: 1px solid #ccc;" role="img">
@@ -208,6 +221,12 @@
 			{/each}
 		{/each}
 	{/if}
+	<div
+		class={cursorClass}
+		style:--x={pointerX}
+		style:--y={pointerY}
+		style:--eraser-radius={eraserRadius}
+	></div>
 </button>
 
 <style>
@@ -218,6 +237,23 @@
 		width: 100%;
 		height: 100%;
 		background-color: hsl(50, 100%, 92%);
+	}
+
+	.eraser-cursor {
+		/* left: calc((var(--x) - var(--eraser-radius)) * 1px);
+		top: calc((var(--y) - var(--eraser-radius)) * 1px); */
+		/* transition: var(--transition-eraser); */
+		transition: 10ms;
+		left: calc((var(--x) * 1px));
+		top: calc((var(--y) * 1px));
+		width: calc(var(--eraser-radius) * 1px);
+		height: calc(var(--eraser-radius) * 1px);
+		border-radius: 50%;
+		border: 2px solid black;
+		background-color: black;
+		position: fixed;
+		pointer-events: none;
+		z-index: 9999;
 	}
 
 	.devmode-label {
@@ -234,6 +270,7 @@
 
 	button.svg-container {
 		touch-action: none;
+		cursor: none;
 	}
 	div.bounds {
 		position: absolute;

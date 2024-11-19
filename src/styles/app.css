@@ -38,4 +38,5 @@
   --transition-fast: 150ms ease;
   --transition-base: 300ms ease;
   --transition-slow: 500ms ease;
+  --transition-eraser: 200ms;
 }
